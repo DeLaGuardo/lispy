@@ -40,9 +40,6 @@
 (use-package 'compliment "0.3.6")
 (require '[compliment.core :as compliment])
 
-(use-package 'me.raynes/fs "1.4.6")
-(require '[me.raynes.fs :as fs])
-
 (defmacro xcond [& clauses]
   "Common Lisp style `cond'.
 
@@ -59,10 +56,19 @@ malleable to refactoring."
            (xcond
              ~@(next clauses)))))))
 
+(defn- exists? [file-path]
+  (.exists (io/file file-path)))
+
+(defn- parent [file-path]
+  (.getParentFile (io/file file-path)))
+
+(def ^:private CWD
+  (.getCanonicalFile (io/file ".")))
+
 (defn fetch-packages []
-  (xcond ((fs/exists? "deps.edn")
+  (xcond ((exists? "deps.edn")
           (println "fixme"))
-         ((fs/exists? "project.clj")
+         ((exists? "project.clj")
           (let [deps (->> (slurp "project.clj")
                           (read-string)
                           (drop 3)
@@ -74,8 +80,8 @@ malleable to refactoring."
               (use-package name ver))))
          (:else
           (throw
-            (ex-info "Found no project.clj or deps.edn"
-                     {:cwd fs/*cwd*})))))
+           (ex-info "Found no project.clj or deps.edn"
+                    {:cwd CWD})))))
 
 (defn expand-home
   [path]
@@ -534,7 +540,7 @@ malleable to refactoring."
                  (clojure.core/str "error: " ~ 'e)))))))
 
 (defn file->elisp [f]
-  (if (fs/exists? f)
+  (if (exists? f)
     f
     (. (io/resource f) getPath)))
 
@@ -596,7 +602,7 @@ malleable to refactoring."
     {:context :same :plain-candidates true}))
 
 (defn run-lispy-tests []
-  (let [dd (fs/parent (:file (meta #'use-package)))
-        fname (java.io.File. dd "lispy-clojure-test.clj")]
-    (when (fs/exists? fname)
+  (let [dd (parent (:file (meta #'use-package)))
+        fname (io/file dd "lispy-clojure-test.clj")]
+    (when (exists? fname)
       (load-file (str fname)))))
